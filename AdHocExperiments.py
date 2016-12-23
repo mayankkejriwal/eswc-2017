@@ -1064,6 +1064,29 @@ def build_subclass_dict_from_db_onto(pruned_ontology, type_statistics_file, outp
     json.dump(subclass_dict, out)
     out.close()
 
+def build_unpruned_subclass_dict_from_db_onto(pruned_ontology, output_file):
+    # types = build_type_weight_dict(type_statistics_file).keys()
+    subclass_dict = dict() # remember, key is the superclass
+    with codecs.open(pruned_ontology, 'r', 'utf-8') as f:
+        for line in f:
+            parsed_triple = EmbeddingGenerator.EmbeddingGenerator.parse_line_into_triple(line)
+            subject_uri = parsed_triple['subject'].n3()[1:-1]
+            object_uri = parsed_triple['object'].n3()[1:-1]
+
+            if parsed_triple['predicate'] != URIRef(u'http://www.w3.org/2000/01/rdf-schema#subClassOf'):
+                continue
+            else:
+                if object_uri not in subclass_dict:
+                    subclass_dict[object_uri] = set()
+                subclass_dict[object_uri].add(subject_uri)
+    for k in subclass_dict.keys():
+        subclass_dict[k] = list(subclass_dict[k])
+        subclass_dict[k].sort()
+
+    out = codecs.open(output_file, 'w', 'utf-8')
+    json.dump(subclass_dict, out)
+    out.close()
+
 
 def convert_exp1_instance_format_to_exp1_class_format(instance_format_file, partition_files, output_file, topk=None):
     """
@@ -1414,7 +1437,7 @@ def topical_relevance_statistics(topical_relevance_file):
     print np.std(relevance)
 
 
-# path = '/Users/mayankkejriwal/datasets/'
+# path = '/Users/mayankkejriwal/datasets/eswc2017/'
 # partition_path = path+'eswc2017/dbpedia-experiments/types-partitions/topical-relevance-results/'
 # topical_relevance_statistics(partition_path+'xx-sp1-100-random-padded.jl')
 # topical_relevance_statistics(partition_path+'ex-sp1-100-random.jl')
@@ -1430,6 +1453,7 @@ def topical_relevance_statistics(topical_relevance_file):
 #                                 partition_path+'classVecsCFSum5.jl'],partition_path+'classVecsCFSum.json')
 # build_subclass_dict_from_db_onto(path+'eswc2017/curated-dbpedia-ontology.nt',
 #                             partition_path+'pruned-types-statistics.txt', partition_path+'pruned-subclass-dict.json')
+# build_unpruned_subclass_dict_from_db_onto(path+'dbpedia-files/curated-dbpedia-ontology.nt', path+'dbpedia-files/subclass_dict.json')
 # exp_recall_analysis_big_partition(partition_path+'exp2-partition-1-score-dict.jl',
 #                 partition_path+'partition-1.ttl', partition_path+'recall@k/exp2-big-partition-1.csv')
 # exp_recall_analysis(partition_path+'baseline-class-5-10nn.jl',

@@ -165,7 +165,7 @@ class EmbeddingGenerator:
 
     @staticmethod
     def classEmbeddingGeneratorDB2Vec_multifile(DB2Vec_file, instance_types_files, prefix_conversion_file,
-                                      output_files, instance_cf_file=None, renormalize=False, option='simpleAverage'):
+                                      output_files, instance_cf_file=None, renormalize=False, use_prefix=True, option='simpleAverage'):
         """
         Similar to classEmbedding...DB2Vec but handles multiple instance types files and output files.
         :param DB2Vec_file:
@@ -224,8 +224,11 @@ class EmbeddingGenerator:
                         continue
                     uri = parsed_triple['subject'].n3()[1:-1]
                     orig_uri = str(uri)
-                    for full_string, prefix in prefix_dict.items():
-                        uri = uri.replace(full_string, prefix)
+                    if use_prefix:
+                        for full_string, prefix in prefix_dict.items():
+                            uri = uri.replace(full_string, prefix)
+                    else:
+                         uri = '<'+str(uri)+'>'
                     try:
                         embedding_vector = model[uri]
                         if option == 'cfAverage' and instance_cf_dict:
@@ -683,15 +686,18 @@ class EmbeddingGenerator:
 # path = '/Users/mayankkejriwal/datasets/eswc2017/dbpedia-experiments/'
 # p_path = path+'types-partitions/'
 # word2vec_path = '/Users/mayankkejriwal/datasets/heiko-vectors/'
+# model = Word2Vec.load(word2vec_path+'DB2VecNoTypes/db2vec_sg_200_5_25_5')
+# model.init_sims(replace=True)
 # EmbeddingGenerator.propertyEmbeddingGeneratorDB2Vec_multifile(word2vec_path+'DB2Vec_sg_500_5_5_15_4_500',
 # [path+'partition-1.ttl',path+'partition-2.ttl',path+'partition-3.ttl',path+'partition-4.ttl',path+'partition-5.ttl'],
 #     word2vec_path+'prefix.txt', [path+'propertyVecsSimpleSum1.jl',path+'propertyVecsSimpleSum2.jl',
 #                     path+'propertyVecsSimpleSum3.jl',path+'propertyVecsSimpleSum4.jl',path+'propertyVecsSimpleSum5.jl'])
-# EmbeddingGenerator.classEmbeddingGeneratorDB2Vec_multifile(word2vec_path+'DB2Vec_sg_500_5_5_15_4_500',
-# [p_path+'partition-1.ttl',p_path+'partition-2.ttl',p_path+'partition-3.ttl',p_path+'partition-4.ttl',p_path+'partition-5.ttl'],
-#     word2vec_path+'prefix.txt', [p_path+'classVecsCFSum1.jl',p_path+'classVecsCFSum2.jl',
-#                     p_path+'classVecsCFSum3.jl',p_path+'classVecsCFSum4.jl',p_path+'classVecsCFSum5.jl'],
-#                                     instance_cf_file=path+'instance-cf.tsv',option='cfAverage')
+# EmbeddingGenerator.classEmbeddingGeneratorDB2Vec_multifile(word2vec_path+'DB2VecNoTypes/db2vec_sg_200_5_25_5',
+# [p_path+'full-partition/partition-1.ttl',p_path+'full-partition/partition-2.ttl',p_path+'full-partition/partition-3.ttl',
+#  p_path+'full-partition/partition-4.ttl',p_path+'full-partition/partition-5.ttl'],
+#     word2vec_path+'prefix.txt', [p_path+'vectors-type-excl/classVecsCFSum1.jl',p_path+'vectors-type-excl/classVecsCFSum2.jl',
+#                     p_path+'vectors-type-excl/classVecsCFSum3.jl',p_path+'vectors-type-excl/classVecsCFSum4.jl',p_path+'vectors-type-excl/classVecsCFSum5.jl'],
+#                                     instance_cf_file=path+'instance-cf.tsv', use_prefix=False)
 # EmbeddingGenerator.classEmbeddingGeneratorRI(RI_file=path+'embeddings/embedding_vecs_full_v1-500.jl',
 #                                             instance_types_file=path+'instance_types_en.ttl',
 #                                              output_file=path+'embeddings/RIclassEmbeddings-v1-normSum.jl')

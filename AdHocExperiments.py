@@ -1247,6 +1247,39 @@ def _is_class_in_DB2Vec(DB2Vec_file, prefix_file, type_file):
                 continue
     print result
 
+def _is_example_class_in_DB2Vec(DB2Vec_file):
+    # prefix_dict = dict()
+    result = False
+    # with codecs.open(prefix_file, 'r', 'utf-8') as f:
+    #     for line in f:
+    #         fields = re.split('\t', line[0:-1])
+    #         prefix_dict[fields[0]] = fields[1]
+    model = Word2Vec.load(DB2Vec_file)
+    model.init_sims(replace=True)
+    print 'finished reading embeddings file'
+    # count = 1
+    # with codecs.open(type_file, 'r', 'utf-8') as f:
+    #     for line in f:
+    #         parsed_triple = EmbeddingGenerator.EmbeddingGenerator.parse_line_into_triple(line)
+    #         if count > 100: break
+    #         count += 1
+    #         object_uri = parsed_triple['object'].n3()[1:-1]
+    #         for full_string, prefix in prefix_dict.items():
+    #             object_uri = object_uri.replace(full_string, prefix)
+    try:
+        object_uri = 'dbr:Place'
+        object_embedding_vector = model[object_uri]
+        result = True
+        # print line
+        # break
+    except KeyError:
+        pass
+        # print 'uri not found in embeddings:',
+        # print uri
+
+        # continue
+    print result
+
 
 def compute_instance_class_frequencies(types_file, output_file):
     """
@@ -1318,12 +1351,12 @@ def remove_literal_triples_from_dbpedia_ontology(dbpedia_ontology, output_file):
 def superclass_tsne_visualization(classVecs_file, pruned_subclass_file, output_file):
     classVecs_dict = json.load(codecs.open(classVecs_file, 'r'))
     subclass_dict = json.load(codecs.open(pruned_subclass_file, 'r'))
-    # supertypes = ['http://dbpedia.org/ontology/Animal', 'http://dbpedia.org/ontology/Politician',
-    #          'http://dbpedia.org/ontology/Building', 'http://dbpedia.org/ontology/MusicalWork',
-    #          'http://dbpedia.org/ontology/Plant'] # let's not leave this to chance
-    supertypes = ['http://dbpedia.org/ontology/SportsTeam', 'http://dbpedia.org/ontology/SportsLeague',
-             'http://dbpedia.org/ontology/Company', 'http://dbpedia.org/ontology/Organisation',
-             'http://dbpedia.org/ontology/EducationalInstitution']
+    supertypes = ['http://dbpedia.org/ontology/Animal', 'http://dbpedia.org/ontology/Politician',
+             'http://dbpedia.org/ontology/Building', 'http://dbpedia.org/ontology/MusicalWork',
+             'http://dbpedia.org/ontology/Plant'] # let's not leave this to chance
+    # supertypes = ['http://dbpedia.org/ontology/SportsTeam', 'http://dbpedia.org/ontology/SportsLeague',
+    #          'http://dbpedia.org/ontology/Company', 'http://dbpedia.org/ontology/Organisation',
+    #          'http://dbpedia.org/ontology/EducationalInstitution']
     y_labels = list()
     y_superclasses = list()
     y_subclasses = list()
@@ -1331,13 +1364,16 @@ def superclass_tsne_visualization(classVecs_file, pruned_subclass_file, output_f
     count = 1
     for supertype in supertypes:
         for subtype in subclass_dict[supertype]:
+            if subtype not in classVecs_dict:
+                print subtype,' not in classvecs'
+                continue
             x.append(classVecs_dict[subtype])
             y_labels.append(count)
             y_superclasses.append(supertype)
             y_subclasses.append(subtype)
         count += 1
     Y = tsne.tsne(np.array(x), 2, 50, 10.0)
-    scatter(Y[:, 0], Y[:, 1], 10, y_labels)
+    scatter(Y[:, 0], Y[:, 1], 20, y_labels)
     print 'Total number of items are : ',
     print len(y_labels)
     out = codecs.open(output_file, 'w', 'utf-8')
@@ -1437,8 +1473,63 @@ def topical_relevance_statistics(topical_relevance_file):
     print np.std(relevance)
 
 
-# path = '/Users/mayankkejriwal/datasets/eswc2017/'
-# partition_path = path+'eswc2017/dbpedia-experiments/types-partitions/topical-relevance-results/'
+def get_type_vectors_from_heiko_embeddings(DB2Vec_file, class_vecs_json, output_file):
+    classes = list(json.load(codecs.open(class_vecs_json, 'r')).keys())
+    class_embedding_vecs = dict()
+    # print len(classes)
+    heiko_format = list()
+    for i in range(len(classes)):
+        heiko_format.append('dbr:'+re.split('/', classes[i])[-1])
+    # print heiko_format[0]
+    model = Word2Vec.load(DB2Vec_file)
+    model.init_sims(replace=True)
+    print 'finished reading DB2Vec embedding file.'
+    for i in range(len(heiko_format)):
+        try:
+            class_embedding_vecs[classes[i]] = model[heiko_format[i]].tolist()
+        except:
+            print heiko_format[i],' not in the DB2vec file...skipping.'
+    json.dump(class_embedding_vecs, codecs.open(output_file, 'w'))
+
+
+def ten_instances_with_top_five_types(classVecs_file, compactified_jl):
+    sample = json.load(codecs.open(classVecs_file, 'r'))
+    k = sample.keys()
+    k.sort()
+    count = 0
+    # print len(k)
+
+    with codecs.open(compactified_jl, 'r', 'utf-8') as f:
+        for line in f:
+            obj = json.loads(line)
+            print obj.keys()[0]
+            score_dict = dict()
+            # print len(obj.values()[0])
+            for i in range(len(obj.values()[0])):
+                if obj.values()[0][i] not in score_dict:
+                    score_dict[obj.values()[0][i]] = list()
+                score_dict[obj.values()[0][i]].append(k[i])
+            scores = score_dict.keys()
+            scores.sort(reverse=True)
+            for s in range(0,5):
+                print score_dict[scores[s]]
+            count += 1
+            if count == 20:
+                break
+
+
+
+
+# path = '/Users/mayankkejriwal/datasets/'
+
+# get_type_vectors_from_heiko_embeddings(path+'heiko-vectors/DB2Vec_sg_500_5_5_15_4_500', path+'eswc2017/dbpedia-experiments/classVecsCFSum.json',
+#                                        path+'eswc2017/dbpedia-experiments/DB2Vec_sg_500_5_5_15_4_500-type-vecs.json')
+# partition_path = path+'eswc2017/dbpedia-experiments/'
+# ten_instances_with_top_five_types(partition_path+'classVecsCFSum-excl.json', partition_path+'/types-partitions/full-fuzzy-clusters/compactified-partition-1.jl')
+
+# sum_normalize_all_vecs([p_path+'vectors-type-excl/classVecsCFSum1.jl',p_path+'vectors-type-excl/classVecsCFSum2.jl',
+#                     p_path+'vectors-type-excl/classVecsCFSum3.jl',p_path+'vectors-type-excl/classVecsCFSum4.jl',p_path+'vectors-type-excl/classVecsCFSum5.jl'],
+#                        path+'eswc2017/dbpedia-experiments/classVecsCFSum-excl.json')
 # topical_relevance_statistics(partition_path+'xx-sp1-100-random-padded.jl')
 # topical_relevance_statistics(partition_path+'ex-sp1-100-random.jl')
 # compute_unique_object_subject_counts(partition_path+'partition-5.ttl')
@@ -1446,8 +1537,9 @@ def topical_relevance_statistics(topical_relevance_file):
 #                 partition_path+'xx-sp1-100-random-padded.jl')
 # process_samples_for_labeling(partition_path+'baseline-class-1-10nn-random-100.jl',
 #                              partition_path+'xx-sp1-100-random.jl')
-# superclass_tsne_visualization(partition_path+'classVecsCFSum.json', partition_path+'pruned-subclass-dict.json',
-#                           partition_path+'types-partitions/tsne-visualizations/coherent.csv'    )
+
+# superclass_tsne_visualization(partition_path+'DB2Vec_sg_500_5_5_15_4_500-type-vecs.json', partition_path+'pruned-subclass-dict.json',
+#                           partition_path+'DB2Vec-coherent.csv'    )
 # sum_normalize_all_vecs([partition_path+'classVecsCFSum1.jl',partition_path+'classVecsCFSum2.jl',
 #     partition_path + 'classVecsCFSum3.jl', partition_path+'classVecsCFSum4.jl',
 #                                 partition_path+'classVecsCFSum5.jl'],partition_path+'classVecsCFSum.json')
@@ -1476,6 +1568,7 @@ def topical_relevance_statistics(topical_relevance_file):
 # partition_path+'small-partition-3.ttl',path + 'heiko-vectors/DB2Vec_sg_500_5_5_15_4_500',
 #                   path + 'heiko-vectors/prefix.txt', partition_path+'exp1-small-partition-3-score-dict.jl')
 # DB2Vec_file = path + 'heiko-vectors/DB2Vec_sg_500_5_5_15_4_500'
+# _is_example_class_in_DB2Vec(DB2Vec_file)
 # model = Word2Vec.load(DB2Vec_file)
 # model.init_sims(replace=True)
 # print 'finished reading embeddings file'
